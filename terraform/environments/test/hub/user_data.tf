@@ -1,4 +1,4 @@
-data "template_file" "container-platform-data" {
+data "templatefile" "container-platform-data" {
     template = file("user_data.sh")
     vars = {
         environment         = local.environment_short
