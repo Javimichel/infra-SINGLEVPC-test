@@ -1,0 +1,51 @@
+version: '3.7'
+services:
+  nginx:
+    image: nginx:1.21.6   # This must match the image stored in the cache in the AMI. We don't have internet access when deploying this.
+    ports:
+      - "5000:8080"
+      - "8080:8080"
+    volumes:
+      - "/data/conf/nginx.conf:/etc/nginx/conf.d/default.conf"
+      - "/data/logs/nginx:/var/log/nginx"
+    links:
+      - registry
+  registry:
+    image: registry:2.6.1
+    volumes:
+      - "/data/conf/registry-config.yml:/etc/docker/registry/config.yml"
+    labels:
+      container-platform.registry-name: '${registry_name}'
+      container-platform.environment: '${environment}'
+      com.datadoghq.tags.env: ${environment}
+      com.datadoghq.tags.service: container-platform-${registry_name}
+      com.datadoghq.ad.check_names: '["http_check"]'
+  logstash:
+    image: logstash:7.14.2
+    hostname: $${HOSTNAME}  # this requires the HOSTNAME variable to be exported before (with a command such as export HOSTNAME=$HOSTNAME)
+    environment:
+      - REGISTRY=${registry_name}
+      - ENVIRONMENT=${environment}
+    command: bash -c "logstash-plugin install logstash-output-datadog_metrics && logstash -f /etc/logstash/conf.d/logstash.conf"
+    ports:
+      - "9200:9200"
+    volumes:
+      - "/data/conf/logstash.yml:/usr/share/logstash/config/logstash.yml"
+      - "/data/conf/logstash.conf:/etc/logstash/conf.d/logstash.conf"
+      - "/data/logs:/var/log/data"
+  datadog:
+    image: datadog/agent:7
+    environment:
+      - DD_API_KEY=${datadog_api_key}
+      - DD_ENV=${environment}
+      - DD_TAGS="registryname:${registry_name} environment:${environment} initiative:container-platform"
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_DOCKER_LABELS_AS_TAGS={"container-platform.registry-name":"registryname","container-platform.environment":"environment"}
+      - DD_COLLECT_EC2_TAGS=true
+    volumes:
+      - "/dev/log:/dev/log"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/proc/:/host/proc/:ro"
+      - "/sys/fs/cgroup/:/host/sys/fs/cgroup:ro"
+    restart: always
+    privileged: true
