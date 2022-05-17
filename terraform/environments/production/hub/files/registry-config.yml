@@ -1,0 +1,18 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  s3:
+    bucket: fury-hub-images-production
+    region: us-east-1
+    chunksize: 52428800
+  cache:
+    blobdescriptor: inmemory
+reporting:
+  newrelic:
+    name: fury-hub-production
+    licensekey: 9a84196d7cc629ddd9fb15d2ca99a2f3eb12048f
+http:
+  secret: 7c9342274a947eebff9b678bebdee91f8320b3bb2a8c0214af6afee5b39fc10a
+  addr: 0.0.0.0:5000
